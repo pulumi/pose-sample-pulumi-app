@@ -3,9 +3,5 @@ description: A simple AWS serverless JavaScript Pulumi program
 runtime:
   name: nodejs
   options:
-    typescript: false
+    typescript: true
     packagemanager: npm
-config:
-  pulumi:tags:
-    value:
-      pulumi:template: hello-aws-javascript
