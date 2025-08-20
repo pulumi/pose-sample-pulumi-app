@@ -1,9 +1,5 @@
 {
     "name": "pose-sample-app",
-    "main": "bin/index.js",
-    "scripts": {
-        "build": "tsc"
-    },
     "dependencies": {
         "@pulumi/aws": "^7.0.0",
         "@pulumi/aws-apigateway": "^3.0.0"
