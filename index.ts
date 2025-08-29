@@ -40,9 +40,6 @@ const eventHandler = new aws.lambda.CallbackFunction("handler", {
             }),
         };
     },
-    tags: {
-        "Owner": "Neo",
-    },
 });
 
 const endpoint = new apigateway.RestAPI("api", {
@@ -57,9 +54,6 @@ const endpoint = new apigateway.RestAPI("api", {
             localPath: "www",
         },
     ],
-    tags: {
-        "Owner": "Neo",
-    },
 });
 
 
