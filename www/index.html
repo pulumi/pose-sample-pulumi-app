@@ -2,17 +2,260 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Hello Pulumi</title>
+    <title>Dad Joke Generator - Powered by Pulumi</title>
     <link rel="shortcut icon" href="favicon.png" type="image/png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255, 193, 7, 0.05) 10px,
+                rgba(255, 193, 7, 0.05) 20px
+            );
+            animation: float 20s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+            50% { transform: translate(-50%, -50%) rotate(180deg); }
+        }
+
+        .header {
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .emoji {
+            font-size: 3rem;
+            margin: 20px 0;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+
+        .joke-container {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            border-left: 5px solid #ffc107;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .joke-text {
+            font-size: 1.3rem;
+            line-height: 1.6;
+            color: #495057;
+            font-style: italic;
+            font-weight: 500;
+        }
+
+        .loading {
+            color: #6c757d;
+            font-style: normal;
+        }
+
+        .joke-button {
+            background: linear-gradient(135deg, #ffc107, #ff8c00);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+            transition: all 0.3s ease;
+            font-weight: bold;
+            position: relative;
+            z-index: 1;
+        }
+
+        .joke-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 193, 7, 0.6);
+        }
+
+        .joke-button:active {
+            transform: translateY(0);
+        }
+
+        .joke-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .footer a {
+            color: #8b5cf6;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .timestamp {
+            font-size: 0.8rem;
+            color: #adb5bd;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .joke-text {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <p>Hello, world!</p>
-    <p>Made with ❤️ using <a href="https://pulumi.com">Pulumi</a></p>
-    <p>Served from: <span id="source"></span></p>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Dad Joke Generator</h1>
+            <div class="emoji">😂</div>
+        </div>
+        
+        <div class="joke-container">
+            <div class="joke-text loading" id="joke-text">
+                Click the button below to get your first dad joke!
+            </div>
+        </div>
+        
+        <button class="joke-button" id="joke-button" onclick="getNewJoke()">
+            Get New Dad Joke! 🎲
+        </button>
+        
+        <div class="timestamp" id="timestamp"></div>
+        
+        <div class="footer">
+            <p>Powered by <a href="https://pulumi.com" target="_blank">Pulumi</a> ⚡️</p>
+            <p>Lambda jokes served fresh from AWS! ☁️</p>
+        </div>
+    </div>
+
+    <script>
+        let isLoading = false;
+
+        async function getNewJoke() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            const button = document.getElementById('joke-button');
+            const jokeText = document.getElementById('joke-text');
+            const timestamp = document.getElementById('timestamp');
+            
+            // Update button state
+            button.disabled = true;
+            button.textContent = '🎲 Loading...';
+            jokeText.textContent = 'Fetching a fresh dad joke...';
+            jokeText.className = 'joke-text loading';
+            timestamp.textContent = '';
+            
+            try {
+                const response = await fetch('source');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // Display the joke
+                jokeText.textContent = data.joke || 'Oops! The joke got lost in the cloud!';
+                jokeText.className = 'joke-text';
+                
+                // Show timestamp
+                if (data.timestamp) {
+                    const date = new Date(data.timestamp);
+                    timestamp.textContent = `Fresh from the cloud at ${date.toLocaleTimeString()}`;
+                }
+                
+            } catch (error) {
+                console.error('Error fetching joke:', error);
+                jokeText.textContent = `Oops! Something went wrong: ${error.message}. But here's a backup joke: Why don't scientists trust atoms? Because they make up everything! 🧪`;
+                jokeText.className = 'joke-text';
+            } finally {
+                // Reset button state
+                isLoading = false;
+                button.disabled = false;
+                button.textContent = 'Get New Dad Joke! 🎲';
+            }
+        }
+
+        // Load a joke when the page first loads
+        window.addEventListener('load', getNewJoke);
+    </script>
 </body>
-<script>
-    fetch("source").then(response => response.json()).then(json => {
-        document.getElementById("source").innerText = json.message;
-    });
-</script>
 </html>
