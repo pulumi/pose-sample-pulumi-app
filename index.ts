@@ -3,7 +3,9 @@ import * as aws from "@pulumi/aws";
 import { Runtime } from "@pulumi/aws/lambda";
 
 const eventHandler = new aws.lambda.CallbackFunction("handler", {
-    runtime: Runtime.NodeJS18dX,
+    runtime: Runtime.NodeJS22dX,
+    memorySize: 256, // Increased from default 128MB for better performance
+    timeout: 10, // Set 10 second timeout for API responses
     callback: async () => {
         // Collection of dad jokes
         const dadJokes = [
