@@ -3,7 +3,7 @@ import * as aws from "@pulumi/aws";
 import { Runtime } from "@pulumi/aws/lambda";
 
 const eventHandler = new aws.lambda.CallbackFunction("handler", {
-    runtime: Runtime.NodeJS22dX,
+    runtime: Runtime.NodeJS18dX,
     callback: async () => {
         // Collection of dad jokes
         const dadJokes = [
