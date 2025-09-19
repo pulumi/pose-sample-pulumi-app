@@ -1,0 +1,9 @@
+Hello from Pulumi Neo!
+
+This is a simple test file added to demonstrate the GitHub PR workflow.
+
+Created on: $(date)
+Purpose: Testing the flow for adding files and creating pull requests
+Repository: pulumi/pose-sample-pulumi-app
+
+This file can be safely removed after testing is complete.
