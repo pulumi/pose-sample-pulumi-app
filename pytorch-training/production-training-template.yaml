@@ -1,0 +1,104 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pytorch-production-training
+  namespace: pytorch-training
+  labels:
+    app: pytorch-training
+    job-type: production
+    model: ${MODEL_NAME}
+    experiment: ${EXPERIMENT_ID}
+spec:
+  parallelism: ${PARALLEL_JOBS:-1}
+  completions: ${PARALLEL_JOBS:-1}
+  template:
+    metadata:
+      labels:
+        app: pytorch-training
+        job-type: production
+        model: ${MODEL_NAME}
+        experiment: ${EXPERIMENT_ID}
+    spec:
+      restartPolicy: Never
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      nodeSelector:
+        accelerator: nvidia-tesla-t4  # Can be changed to more powerful GPUs for production
+      containers:
+      - name: pytorch-trainer
+        image: ${TRAINING_IMAGE}
+        command: ["python", "/app/train.py"]
+        args:
+        - --model=${MODEL_NAME}
+        - --experiment-id=${EXPERIMENT_ID}
+        - --epochs=${EPOCHS:-100}
+        - --batch-size=${BATCH_SIZE:-32}
+        - --learning-rate=${LEARNING_RATE:-0.001}
+        - --data-path=/datasets
+        - --output-path=/models
+        - --checkpoint-interval=${CHECKPOINT_INTERVAL:-10}
+        env:
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        resources:
+          requests:
+            memory: "${MEMORY_REQUEST:-8Gi}"
+            cpu: "${CPU_REQUEST:-4}"
+            nvidia.com/gpu: ${GPU_REQUEST:-1}
+          limits:
+            memory: "${MEMORY_LIMIT:-16Gi}"
+            cpu: "${CPU_LIMIT:-8}"
+            nvidia.com/gpu: ${GPU_LIMIT:-1}
+        volumeMounts:
+        - name: datasets
+          mountPath: /datasets
+          readOnly: true
+        - name: models
+          mountPath: /models
+        - name: checkpoints
+          mountPath: /checkpoints
+        - name: logs
+          mountPath: /logs
+      volumes:
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: pytorch-datasets
+      - name: models
+        persistentVolumeClaim:
+          claimName: pytorch-models
+      - name: checkpoints
+        persistentVolumeClaim:
+          claimName: pytorch-checkpoints
+      - name: logs
+        emptyDir: {}
+  backoffLimit: 2
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pytorch-models
+  namespace: pytorch-training
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: ${MODEL_STORAGE:-200Gi}
+  storageClassName: standard-rwo
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pytorch-checkpoints
+  namespace: pytorch-training
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: ${CHECKPOINT_STORAGE:-500Gi}
+  storageClassName: standard-rwo

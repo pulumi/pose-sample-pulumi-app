@@ -1,0 +1,167 @@
+name: Deploy PyTorch Training Cluster
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+
+env:
+  PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+jobs:
+  preview:
+    name: Preview Infrastructure Changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_DEV_SANDBOX_SA_KEY }}
+
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Install Pulumi CLI
+      uses: pulumi/actions@v4
+
+    - name: Pulumi Preview
+      uses: pulumi/actions@v4
+      with:
+        command: preview
+        stack-name: dev
+        comment-on-pr: true
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GCP_DEV_SANDBOX_SA_KEY }}
+
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_DEV_SANDBOX_SA_KEY }}
+
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Install Pulumi CLI
+      uses: pulumi/actions@v4
+
+    - name: Configure Pulumi Stack
+      run: |
+        pulumi stack select ${{ github.event.inputs.environment || 'dev' }} || pulumi stack init ${{ github.event.inputs.environment || 'dev' }}
+        pulumi config set gcp:project ${{ vars.GCP_PROJECT_ID }}
+        pulumi config set gcp:region ${{ vars.GCP_REGION || 'us-central1' }}
+        pulumi config set gcp:zone ${{ vars.GCP_ZONE || 'us-central1-a' }}
+
+    - name: Pulumi Up
+      uses: pulumi/actions@v4
+      with:
+        command: up
+        stack-name: ${{ github.event.inputs.environment || 'dev' }}
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GCP_DEV_SANDBOX_SA_KEY }}
+
+    - name: Get cluster credentials
+      run: |
+        CLUSTER_NAME=$(pulumi stack output clusterName)
+        CLUSTER_LOCATION=$(pulumi stack output clusterLocation)
+        gcloud container clusters get-credentials $CLUSTER_NAME --location=$CLUSTER_LOCATION
+
+    - name: Deploy PyTorch training resources
+      run: |
+        kubectl apply -f pytorch-training/sample-training-job.yaml
+        kubectl apply -f pytorch-training/monitoring.yaml
+
+    - name: Verify deployment
+      run: |
+        kubectl get nodes -l accelerator=nvidia-tesla-t4
+        kubectl get pods -n pytorch-training
+        kubectl get pvc -n pytorch-training
+
+  test-training:
+    name: Test PyTorch Training
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_DEV_SANDBOX_SA_KEY }}
+
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Install Pulumi CLI
+      uses: pulumi/actions@v4
+
+    - name: Get cluster credentials
+      run: |
+        pulumi stack select ${{ github.event.inputs.environment || 'dev' }}
+        CLUSTER_NAME=$(pulumi stack output clusterName)
+        CLUSTER_LOCATION=$(pulumi stack output clusterLocation)
+        gcloud container clusters get-credentials $CLUSTER_NAME --location=$CLUSTER_LOCATION
+
+    - name: Run sample training job
+      run: |
+        # Delete any existing job
+        kubectl delete job pytorch-training-sample -n pytorch-training --ignore-not-found=true
+        
+        # Apply the sample training job
+        kubectl apply -f pytorch-training/sample-training-job.yaml
+        
+        # Wait for job to complete (timeout after 10 minutes)
+        kubectl wait --for=condition=complete job/pytorch-training-sample -n pytorch-training --timeout=600s
+        
+        # Show job logs
+        kubectl logs job/pytorch-training-sample -n pytorch-training
+
+    - name: Cleanup test job
+      if: always()
+      run: |
+        kubectl delete job pytorch-training-sample -n pytorch-training --ignore-not-found=true

@@ -1,2 +1,34 @@
-/node_modules/
-/bin/
+node_modules/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Pulumi
+.pulumi/
+Pulumi.*.yaml.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build outputs
+dist/
+build/
+
+# Kubernetes
+kubeconfig
+*.kubeconfig

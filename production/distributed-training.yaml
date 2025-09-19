@@ -1,0 +1,97 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: distributed-pytorch-training
+  namespace: pytorch-training
+  labels:
+    app: pytorch-training
+    job-type: distributed
+    framework: pytorch
+spec:
+  parallelism: 4  # Number of worker pods
+  completions: 4
+  template:
+    metadata:
+      labels:
+        app: pytorch-training
+        job-type: distributed
+    spec:
+      restartPolicy: Never
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      nodeSelector:
+        accelerator: nvidia-tesla-v100
+      containers:
+      - name: pytorch-trainer
+        image: pytorch/pytorch:2.1.0-cuda11.8-cudnn8-devel
+        command: ["python", "-m", "torch.distributed.launch"]
+        args:
+        - --nproc_per_node=2
+        - --nnodes=4
+        - --node_rank=$(POD_INDEX)
+        - --master_addr=$(MASTER_ADDR)
+        - --master_port=23456
+        - /app/distributed_train.py
+        - --epochs=100
+        - --batch-size=32
+        - --data-path=/datasets
+        - --output-path=/models
+        env:
+        - name: POD_INDEX
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+        - name: MASTER_ADDR
+          value: "distributed-pytorch-training-0"
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_SOCKET_IFNAME
+          value: "eth0"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        resources:
+          requests:
+            memory: "32Gi"
+            cpu: "16"
+            nvidia.com/gpu: 2
+          limits:
+            memory: "64Gi"
+            cpu: "32"
+            nvidia.com/gpu: 2
+        volumeMounts:
+        - name: datasets
+          mountPath: /datasets
+          readOnly: true
+        - name: models
+          mountPath: /models
+        - name: shared-memory
+          mountPath: /dev/shm
+      volumes:
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: pytorch-datasets
+      - name: models
+        persistentVolumeClaim:
+          claimName: pytorch-models
+      - name: shared-memory
+        emptyDir:
+          medium: Memory
+          sizeLimit: 8Gi
+  backoffLimit: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: distributed-pytorch-training
+  namespace: pytorch-training
+spec:
+  clusterIP: None  # Headless service for distributed training
+  selector:
+    app: pytorch-training
+    job-type: distributed
+  ports:
+  - name: master-port
+    port: 23456
+    targetPort: 23456
