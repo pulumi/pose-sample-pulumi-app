@@ -1,5 +1,5 @@
-name: pose-sample-app
-description: A simple AWS serverless JavaScript Pulumi program
+name: pytorch-training-cluster
+description: A GKE-based PyTorch training cluster for development and production workloads
 runtime:
   name: nodejs
   options:

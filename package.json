@@ -1,8 +1,10 @@
 {
-    "name": "pose-sample-app",
+    "name": "pytorch-training-cluster",
+    "description": "GKE-based PyTorch training cluster infrastructure",
     "dependencies": {
-        "@pulumi/aws": "^7.0.0",
-        "@pulumi/aws-apigateway": "^3.0.0"
+        "@pulumi/gcp": "^8.0.0",
+        "@pulumi/kubernetes": "^4.0.0",
+        "@pulumi/random": "^4.0.0"
     },
     "devDependencies": {
         "@types/node": "^18.0.0",
