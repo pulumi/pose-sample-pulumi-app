@@ -1,0 +1,58 @@
+# Production cluster configuration template
+# Use this to scale up for production workloads
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: production-cluster-config
+  namespace: pytorch-training
+data:
+  # Cluster scaling parameters
+  min-gpu-nodes: "2"
+  max-gpu-nodes: "50"
+  gpu-machine-type: "n1-standard-8"  # or a100-megagpu-40g for high-end training
+  gpu-type: "nvidia-tesla-v100"      # or nvidia-tesla-a100 for cutting-edge performance
+  gpu-count-per-node: "2"
+  
+  # Storage configuration
+  dataset-storage: "1Ti"
+  model-storage: "500Gi"
+  checkpoint-storage: "2Ti"
+  
+  # Training job defaults
+  default-memory-request: "16Gi"
+  default-memory-limit: "32Gi"
+  default-cpu-request: "8"
+  default-cpu-limit: "16"
+  default-gpu-request: "1"
+  default-gpu-limit: "2"
+  
+  # Monitoring and logging
+  enable-prometheus: "true"
+  enable-grafana: "true"
+  log-retention-days: "30"
+  metrics-retention-days: "90"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cost-optimization-config
+  namespace: pytorch-training
+data:
+  # Cost optimization settings
+  enable-preemptible-nodes: "true"
+  preemptible-percentage: "70"  # 70% preemptible, 30% regular
+  enable-cluster-autoscaler: "true"
+  scale-down-delay: "10m"
+  scale-down-unneeded-time: "10m"
+  
+  # Resource quotas for cost control
+  max-cpu-quota: "1000"
+  max-memory-quota: "4000Gi"
+  max-gpu-quota: "20"
+  max-storage-quota: "10Ti"
+  
+  # Scheduling preferences
+  enable-node-affinity: "true"
+  prefer-spot-instances: "true"
+  enable-pod-disruption-budgets: "true"
