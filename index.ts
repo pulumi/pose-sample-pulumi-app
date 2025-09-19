@@ -26,7 +26,8 @@ const eventHandler = new aws.lambda.CallbackFunction("handler", {
             "What did the grape do when he got stepped on? Nothing but let out a little wine!",
             "I used to hate facial hair... but then it grew on me!",
             "What do you call a dinosaur that crashes his car? Tyrannosaurus Wrecks!",
-            "Why can't your nose be 12 inches long? Because then it would be a foot!"
+            "Why can't your nose be 12 inches long? Because then it would be a foot!",
+            "Why do programmers prefer dark mode? Because light attracts bugs!"
         ];
         
         // Select a random dad joke
